@@ -35,11 +35,22 @@ from lr_scheduler import LRScheduler
 from ale import AbsoluteLogarithmicError
 from keras_flops import get_flops
 
+import matplotlib.pyplot as plt
+
 
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
+class Pod_Limb(Enum):
+    FLT = 0
+    FLB = auto()
+    FRB = auto()
+    FRT = auto()
+    RLT = auto()
+    RLB = auto()
+    RRB = auto()
+    RRT = auto()
 
-class Limb(Enum):
+class Human_Limb(Enum):
     HEAD = 0
     NECK = auto()
     RIGHT_SHOULDER = auto()
@@ -55,9 +66,33 @@ class Limb(Enum):
     LEFT_KNEE = auto()
     LEFT_ANKLE = auto()
 
+class Pallet_Limb(Enum):
+    FLT = 0
+    FLB = auto()
+    FRB = auto()
+    FRT = auto()
+    RLT = auto()
+    RLB = auto()
+    RRB = auto()
+    RRT = auto()
+
+    HLLT = auto()
+    HLLB = auto()
+    HLRB = auto()
+    HLRT = auto()
+    
+    HRLT = auto()
+    HRLB = auto()
+    HRRB = auto()
+    HRRT = auto()
+
+dict_limb = {"Human":Human_Limb,
+             "Pod":Pod_Limb,
+             "Pallet":Pallet_Limb}
 
 class LightPose:
     def __init__(self,
+                 mode,
                  train_image_path,
                  input_shape,
                  lr,
@@ -73,6 +108,8 @@ class LightPose:
                  output_tensor_dimension=2,
                  confidence_threshold=0.05,
                  validation_split=0.2):
+        self.mode = mode
+        self.limb = dict_limb[self.mode]
         self.train_image_path = train_image_path
         self.validation_image_path = validation_image_path
         self.validation_split = validation_split
@@ -92,7 +129,7 @@ class LightPose:
         if input_shape[-1] == 1:
             self.img_type = cv2.IMREAD_GRAYSCALE
 
-        self.limb_size = len(Limb)
+        self.limb_size = len(self.limb)
         if self.output_tensor_dimension == 1:
             self.output_size = self.limb_size * 3
         elif self.output_tensor_dimension == 2:
@@ -128,6 +165,14 @@ class LightPose:
             batch_size=self.batch_size,
             limb_size=self.limb_size)
         self.lr_scheduler = LRScheduler(iterations=self.iterations, lr=self.lr, warm_up=self.warm_up, policy='step')
+
+        self.loss_history = {
+            'total_loss': [],
+            'confidence_loss': [],
+            'regression_loss': []
+        }
+        if self.output_tensor_dimension == 2:
+            self.loss_history['classification_loss'] = []
 
     @staticmethod
     def init_image_paths(image_path, validation_split=0.0):
@@ -296,6 +341,19 @@ class LightPose:
             if self.training_view_flag:
                 self.training_view_function()
             print(self.build_loss_str(iteration_count, losses))
+
+            if self.output_tensor_dimension == 2:
+                total_loss, confidence_loss, regression_loss, classification_loss = losses
+                self.loss_history['total_loss'].append(float(total_loss))
+                self.loss_history['confidence_loss'].append(float(confidence_loss))
+                self.loss_history['regression_loss'].append(float(regression_loss))
+                self.loss_history['classification_loss'].append(float(classification_loss))
+            else:
+                total_loss, confidence_loss, regression_loss = losses
+                self.loss_history['total_loss'].append(float(total_loss))
+                self.loss_history['confidence_loss'].append(float(confidence_loss))
+                self.loss_history['regression_loss'].append(float(regression_loss))
+
             warm_up_end = iteration_count >= int(self.iterations * self.warm_up)
             if warm_up_end and iteration_count % self.checkpoint_interval == 0:
                 print()
@@ -307,8 +365,11 @@ class LightPose:
                 else:
                     self.model.save(f'checkpoint/model_{iteration_count}_iter_{val_pck:.4f}_val_PCK.h5', include_optimizer=False)
                 print()
+
             if iteration_count == self.iterations:
                 print('\ntrain end successfully')
+
+                self.plot_loss()
                 return
 
     def predict_images(self, dataset='validation'):
@@ -366,25 +427,71 @@ class LightPose:
         return img
 
     def draw_skeleton(self, img, y):
-        img = self.line_if_valid(img, y[Limb.HEAD.value], y[Limb.NECK.value])
+        if self.mode == "Human":
+            img = self.line_if_valid(img, y[self.limb.HEAD.value], y[self.limb.NECK.value])
 
-        img = self.line_if_valid(img, y[Limb.NECK.value], y[Limb.RIGHT_SHOULDER.value])
-        img = self.line_if_valid(img, y[Limb.RIGHT_SHOULDER.value], y[Limb.RIGHT_ELBOW.value])
-        img = self.line_if_valid(img, y[Limb.RIGHT_ELBOW.value], y[Limb.RIGHT_WRIST.value])
+            img = self.line_if_valid(img, y[self.limb.NECK.value], y[self.limb.RIGHT_SHOULDER.value])
+            img = self.line_if_valid(img, y[self.limb.RIGHT_SHOULDER.value], y[self.limb.RIGHT_ELBOW.value])
+            img = self.line_if_valid(img, y[self.limb.RIGHT_ELBOW.value], y[self.limb.RIGHT_WRIST.value])
 
-        img = self.line_if_valid(img, y[Limb.NECK.value], y[Limb.LEFT_SHOULDER.value])
-        img = self.line_if_valid(img, y[Limb.LEFT_SHOULDER.value], y[Limb.LEFT_ELBOW.value])
-        img = self.line_if_valid(img, y[Limb.LEFT_ELBOW.value], y[Limb.LEFT_WRIST.value])
+            img = self.line_if_valid(img, y[self.limb.NECK.value], y[self.limb.LEFT_SHOULDER.value])
+            img = self.line_if_valid(img, y[self.limb.LEFT_SHOULDER.value], y[self.limb.LEFT_ELBOW.value])
+            img = self.line_if_valid(img, y[self.limb.LEFT_ELBOW.value], y[self.limb.LEFT_WRIST.value])
 
-        img = self.line_if_valid(img, y[Limb.RIGHT_HIP.value], y[Limb.LEFT_HIP.value])
+            img = self.line_if_valid(img, y[self.limb.RIGHT_HIP.value], y[self.limb.LEFT_HIP.value])
 
-        img = self.line_if_valid(img, y[Limb.RIGHT_SHOULDER.value], y[Limb.RIGHT_HIP.value])
-        img = self.line_if_valid(img, y[Limb.RIGHT_HIP.value], y[Limb.RIGHT_KNEE.value])
-        img = self.line_if_valid(img, y[Limb.RIGHT_KNEE.value], y[Limb.RIGHT_ANKLE.value])
+            img = self.line_if_valid(img, y[self.limb.RIGHT_SHOULDER.value], y[self.limb.RIGHT_HIP.value])
+            img = self.line_if_valid(img, y[self.limb.RIGHT_HIP.value], y[self.limb.RIGHT_KNEE.value])
+            img = self.line_if_valid(img, y[self.limb.RIGHT_KNEE.value], y[self.limb.RIGHT_ANKLE.value])
 
-        img = self.line_if_valid(img, y[Limb.LEFT_SHOULDER.value], y[Limb.LEFT_HIP.value])
-        img = self.line_if_valid(img, y[Limb.LEFT_HIP.value], y[Limb.LEFT_KNEE.value])
-        img = self.line_if_valid(img, y[Limb.LEFT_KNEE.value], y[Limb.LEFT_ANKLE.value])
+            img = self.line_if_valid(img, y[self.limb.LEFT_SHOULDER.value], y[self.limb.LEFT_HIP.value])
+            img = self.line_if_valid(img, y[self.limb.LEFT_HIP.value], y[self.limb.LEFT_KNEE.value])
+            img = self.line_if_valid(img, y[self.limb.LEFT_KNEE.value], y[self.limb.LEFT_ANKLE.value])
+        
+        elif self.mode == "Pod":
+            img = self.line_if_valid(img, y[self.limb.FLT.value], y[self.limb.FLB.value])
+            img = self.line_if_valid(img, y[self.limb.FLT.value], y[self.limb.RLT.value])
+            img = self.line_if_valid(img, y[self.limb.FLT.value], y[self.limb.FRT.value])
+            img = self.line_if_valid(img, y[self.limb.FLB.value], y[self.limb.FRB.value])
+            img = self.line_if_valid(img, y[self.limb.FLB.value], y[self.limb.RLB.value])
+            img = self.line_if_valid(img, y[self.limb.FRB.value], y[self.limb.FRT.value])
+            img = self.line_if_valid(img, y[self.limb.FRB.value], y[self.limb.RRB.value])
+            img = self.line_if_valid(img, y[self.limb.FRT.value], y[self.limb.RRT.value])
+            img = self.line_if_valid(img, y[self.limb.RLT.value], y[self.limb.RLB.value])
+            img = self.line_if_valid(img, y[self.limb.RLT.value], y[self.limb.RRT.value])
+            img = self.line_if_valid(img, y[self.limb.RLB.value], y[self.limb.RRB.value])
+            img = self.line_if_valid(img, y[self.limb.RRB.value], y[self.limb.RRT.value]) 
+        
+        elif self.mode == "Pallet":
+            img = self.line_if_valid(img, y[self.limb.FLT.value], y[self.limb.FLB.value])
+            img = self.line_if_valid(img, y[self.limb.FLT.value], y[self.limb.RLT.value])
+            img = self.line_if_valid(img, y[self.limb.FLT.value], y[self.limb.FRT.value])
+            
+            img = self.line_if_valid(img, y[self.limb.FLB.value], y[self.limb.FRB.value])
+            img = self.line_if_valid(img, y[self.limb.FLB.value], y[self.limb.RLB.value])
+            
+            img = self.line_if_valid(img, y[self.limb.FRB.value], y[self.limb.FRT.value])
+            img = self.line_if_valid(img, y[self.limb.FRB.value], y[self.limb.RRB.value])
+            
+            img = self.line_if_valid(img, y[self.limb.FRT.value], y[self.limb.RRT.value])
+            
+            img = self.line_if_valid(img, y[self.limb.RLT.value], y[self.limb.RLB.value])
+            img = self.line_if_valid(img, y[self.limb.RLT.value], y[self.limb.RRT.value])
+            
+            img = self.line_if_valid(img, y[self.limb.RLB.value], y[self.limb.RRB.value])
+            
+            img = self.line_if_valid(img, y[self.limb.RRB.value], y[self.limb.RRT.value])
+
+            img = self.line_if_valid(img, y[self.limb.HLLT.value], y[self.limb.HLLB.value])
+            img = self.line_if_valid(img, y[self.limb.HLLT.value], y[self.limb.HLRT.value])
+            img = self.line_if_valid(img, y[self.limb.HLRB.value], y[self.limb.HLLB.value])
+            img = self.line_if_valid(img, y[self.limb.HLRB.value], y[self.limb.HLRT.value])
+
+            img = self.line_if_valid(img, y[self.limb.HRLT.value], y[self.limb.HRLB.value])
+            img = self.line_if_valid(img, y[self.limb.HRLT.value], y[self.limb.HRRT.value])
+            img = self.line_if_valid(img, y[self.limb.HRRB.value], y[self.limb.HRLB.value])
+            img = self.line_if_valid(img, y[self.limb.HRRB.value], y[self.limb.HRRT.value])
+        
         for v in y:
             img = self.circle_if_valid(img, v)
         return img
@@ -444,4 +551,35 @@ class LightPose:
         cv2.imshow('train', train_image)
         cv2.imshow('validation', validation_image)
         cv2.waitKey(1)
+
+    def plot_loss(self):
+        # x축: iteration
+        x_axis = range(1, len(self.loss_history['total_loss']) + 1)
+
+        plt.figure(figsize=(10, 6))
+
+        # (1) total_loss
+        plt.plot(x_axis, self.loss_history['total_loss'], label='total_loss', color='r', linewidth=1.5)
+
+        # (2) confidence_loss
+        plt.plot(x_axis, self.loss_history['confidence_loss'], label='confidence_loss', color='g', linewidth=1.5)
+
+        # (3) regression_loss
+        plt.plot(x_axis, self.loss_history['regression_loss'], label='regression_loss', color='b', linewidth=1.5)
+
+        # (4) classification_loss (output_tensor_dimension == 2 인 경우에만)
+        if self.output_tensor_dimension == 2 and 'classification_loss' in self.loss_history:
+            plt.plot(x_axis, self.loss_history['classification_loss'], label='classification_loss', color='m', linewidth=1.5)
+
+        # 그래프 설정
+        plt.title('Loss Curve')
+        plt.xlabel('Iteration')
+        plt.ylabel('Loss')
+        plt.ylim((0.,1.))
+        plt.legend()
+        plt.grid(True)
+
+        # 그래프 저장 혹은 표시
+        plt.savefig('loss_curve.png')  # 'loss_curve.png' 파일로 저장
+        # plt.show()                     # 화면에 표시
 

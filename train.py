@@ -18,16 +18,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from light_pose import LightPose
+import argparse
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="LightPose 모드 선택")
+    parser.add_argument(
+        '--mode', 
+        type=str, 
+        choices=['Human', 'Pod', 'Pallet'], 
+        # required=True, 
+        # default="Pod",
+        default="Pallet",
+        help="실행할 모드를 선택합니다: Human, Pod, Pallet 중 하나"
+    )
+    args = parser.parse_args()
+
     LightPose(
-        train_image_path=r'/train_data/pose/train',
-        validation_image_path=r'/train_data/pose/validation',
+        mode= args.mode,
+        train_image_path=r'./train_data/pallet/train',
+        validation_image_path=r'./train_data/pallet/validation',
         input_shape=(96, 96, 1),
         lr=0.001,
         decay=5e-4,
         warm_up=0.5,
         momentum=0.9,
         batch_size=32,
-        iterations=200000,
+        iterations=20000,
         checkpoint_interval=2000).fit()

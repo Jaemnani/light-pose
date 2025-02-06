@@ -3,13 +3,23 @@ import cv2
 import numpy as np
 
 from enum import Enum, auto
-
+import argparse
 
 g_win_size = (416, 768)
 g_win_name = 'LabelPose v2.1 by Inzapp'
 
 
-class Limb(Enum):
+class Pod_Limb(Enum):
+    FLT = 0
+    FLB = auto()
+    FRB = auto()
+    FRT = auto()
+    RLT = auto()
+    RLB = auto()
+    RRB = auto()
+    RRT = auto()
+
+class Human_Limb(Enum):
     HEAD = 0
     NECK = auto()
     RIGHT_SHOULDER = auto()
@@ -25,9 +35,34 @@ class Limb(Enum):
     LEFT_KNEE = auto()
     LEFT_ANKLE = auto()
 
+class Pallet_Limb(Enum):
+    FLT = 0
+    FLB = auto()
+    FRB = auto()
+    FRT = auto()
+    RLT = auto()
+    RLB = auto()
+    RRB = auto()
+    RRT = auto()
+
+    HLLT = auto()
+    HLLB = auto()
+    HLRB = auto()
+    HLRT = auto()
+    
+    HRLT = auto()
+    HRLB = auto()
+    HRRB = auto()
+    HRRT = auto()
+
+dict_limb = {"Human":Human_Limb,
+             "Pod":Pod_Limb,
+             "Pallet":Pallet_Limb}
 
 class LabelPose:
-    def __init__(self):
+    def __init__(self, mode):
+        self.mode = mode
+        self.limb = dict_limb[self.mode]
         self.image_paths = self.init_image_paths()
         if len(self.image_paths) == 0:
             print('No image files in path.')
@@ -37,7 +72,7 @@ class LabelPose:
         self.show_skeleton = True
         self.cur_image_path = ''
         self.cur_label_path = ''
-        self.max_limb_size = len(Limb)
+        self.max_limb_size = len(self.limb)
         self.limb_index = 0
         self.cur_label = self.reset_label()
         self.guide_label = self.reset_label()
@@ -52,7 +87,8 @@ class LabelPose:
         from tkinter import filedialog
         root = tk.Tk()
         root.withdraw()
-        image_path = filedialog.askdirectory()
+        # image_path = filedialog.askdirectory(initialdir="/Users/jaemoonye/tmp/light-pose/train_data/pose/")
+        image_path = filedialog.askdirectory(initialdir="~/")
         print(image_path)
         image_paths = natsort.natsorted(glob(f'{image_path}/*.jpg'))
         for i in range(len(image_paths)):
@@ -61,7 +97,7 @@ class LabelPose:
 
     def init_text_positions(self):
         text_positions = []
-        for i, limb in enumerate(list(Limb)):
+        for i, limb in enumerate(list(self.limb)):
             tx = 0
             ty = 10 + (i * 15 + 2)
             font_face = cv2.FONT_HERSHEY_SIMPLEX
@@ -102,7 +138,7 @@ class LabelPose:
         img = self.guide_img.copy()
         img = self.circle(img, self.guide_label[self.limb_index][1], self.guide_label[self.limb_index][2])
         thickness = 1
-        for i, limb in enumerate(list(Limb)):
+        for i, limb in enumerate(list(self.limb)):
             if i == self.limb_index:
                 font_face = cv2.FONT_HERSHEY_DUPLEX
                 color = (255, 255, 255)
@@ -119,25 +155,67 @@ class LabelPose:
         global g_win_name
         img = self.raw.copy()
         if self.show_skeleton:
-            img = self.line_if_valid(img, self.cur_label[Limb.HEAD.value], self.cur_label[Limb.NECK.value])
+            if self.mode == "Pod":
+                img = self.line_if_valid(img, self.cur_label[self.limb.FLT.value], self.cur_label[self.limb.FLB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FLT.value], self.cur_label[self.limb.RLT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FLT.value], self.cur_label[self.limb.FRT.value])
 
-            img = self.line_if_valid(img, self.cur_label[Limb.NECK.value], self.cur_label[Limb.RIGHT_SHOULDER.value])
-            img = self.line_if_valid(img, self.cur_label[Limb.RIGHT_SHOULDER.value], self.cur_label[Limb.RIGHT_ELBOW.value])
-            img = self.line_if_valid(img, self.cur_label[Limb.RIGHT_ELBOW.value], self.cur_label[Limb.RIGHT_WRIST.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FLB.value], self.cur_label[self.limb.FRB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FLB.value], self.cur_label[self.limb.RLB.value])
 
-            img = self.line_if_valid(img, self.cur_label[Limb.NECK.value], self.cur_label[Limb.LEFT_SHOULDER.value])
-            img = self.line_if_valid(img, self.cur_label[Limb.LEFT_SHOULDER.value], self.cur_label[Limb.LEFT_ELBOW.value])
-            img = self.line_if_valid(img, self.cur_label[Limb.LEFT_ELBOW.value], self.cur_label[Limb.LEFT_WRIST.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FRB.value], self.cur_label[self.limb.FRT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FRB.value], self.cur_label[self.limb.RRB.value])
 
-            img = self.line_if_valid(img, self.cur_label[Limb.RIGHT_HIP.value], self.cur_label[Limb.LEFT_HIP.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FRT.value], self.cur_label[self.limb.RRT.value])
 
-            img = self.line_if_valid(img, self.cur_label[Limb.RIGHT_SHOULDER.value], self.cur_label[Limb.RIGHT_HIP.value])
-            img = self.line_if_valid(img, self.cur_label[Limb.RIGHT_HIP.value], self.cur_label[Limb.RIGHT_KNEE.value])
-            img = self.line_if_valid(img, self.cur_label[Limb.RIGHT_KNEE.value], self.cur_label[Limb.RIGHT_ANKLE.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RLT.value], self.cur_label[self.limb.RLB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RLT.value], self.cur_label[self.limb.RRT.value])
 
-            img = self.line_if_valid(img, self.cur_label[Limb.LEFT_SHOULDER.value], self.cur_label[Limb.LEFT_HIP.value])
-            img = self.line_if_valid(img, self.cur_label[Limb.LEFT_HIP.value], self.cur_label[Limb.LEFT_KNEE.value])
-            img = self.line_if_valid(img, self.cur_label[Limb.LEFT_KNEE.value], self.cur_label[Limb.LEFT_ANKLE.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RLB.value], self.cur_label[self.limb.RRB.value])
+
+                img = self.line_if_valid(img, self.cur_label[self.limb.RRB.value], self.cur_label[self.limb.RRT.value])
+            elif self.mode == "Human":
+                img = self.line_if_valid(img, self.cur_label[self.limb.HEAD.value], self.cur_label[self.limb.NECK.value])
+
+                img = self.line_if_valid(img, self.cur_label[self.limb.NECK.value], self.cur_label[self.limb.RIGHT_SHOULDER.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RIGHT_SHOULDER.value], self.cur_label[self.limb.RIGHT_ELBOW.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RIGHT_ELBOW.value], self.cur_label[self.limb.RIGHT_WRIST.value])
+
+                img = self.line_if_valid(img, self.cur_label[self.limb.NECK.value], self.cur_label[self.limb.LEFT_SHOULDER.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.LEFT_SHOULDER.value], self.cur_label[self.limb.LEFT_ELBOW.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.LEFT_ELBOW.value], self.cur_label[self.limb.LEFT_WRIST.value])
+
+                img = self.line_if_valid(img, self.cur_label[self.limb.RIGHT_HIP.value], self.cur_label[self.limb.LEFT_HIP.value])
+
+                img = self.line_if_valid(img, self.cur_label[self.limb.RIGHT_SHOULDER.value], self.cur_label[self.limb.RIGHT_HIP.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RIGHT_HIP.value], self.cur_label[self.limb.RIGHT_KNEE.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RIGHT_KNEE.value], self.cur_label[self.limb.RIGHT_ANKLE.value])
+
+                img = self.line_if_valid(img, self.cur_label[self.limb.LEFT_SHOULDER.value], self.cur_label[self.limb.LEFT_HIP.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.LEFT_HIP.value], self.cur_label[self.limb.LEFT_KNEE.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.LEFT_KNEE.value], self.cur_label[self.limb.LEFT_ANKLE.value])
+            elif self.mode == "Pallet":
+                img = self.line_if_valid(img, self.cur_label[self.limb.FLT.value],  self.cur_label[self.limb.FLB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FLT.value],  self.cur_label[self.limb.RLT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FLT.value],  self.cur_label[self.limb.FRT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FLB.value],  self.cur_label[self.limb.FRB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FLB.value],  self.cur_label[self.limb.RLB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FRB.value],  self.cur_label[self.limb.FRT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FRB.value],  self.cur_label[self.limb.RRB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.FRT.value],  self.cur_label[self.limb.RRT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RLT.value],  self.cur_label[self.limb.RLB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RLT.value],  self.cur_label[self.limb.RRT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RLB.value],  self.cur_label[self.limb.RRB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.RRB.value],  self.cur_label[self.limb.RRT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.HLLT.value], self.cur_label[self.limb.HLLB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.HLLT.value], self.cur_label[self.limb.HLRT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.HLRB.value], self.cur_label[self.limb.HLLB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.HLRB.value], self.cur_label[self.limb.HLRT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.HRLT.value], self.cur_label[self.limb.HRLB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.HRLT.value], self.cur_label[self.limb.HRRT.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.HRRB.value], self.cur_label[self.limb.HRLB.value])
+                img = self.line_if_valid(img, self.cur_label[self.limb.HRRB.value], self.cur_label[self.limb.HRRT.value])
+            
         limb_index = self.get_text_index_if_cursor_in_text(cur_x, cur_y)
         for i, label in enumerate(self.cur_label):
             use, x, y = label
@@ -296,4 +374,15 @@ class LabelPose:
 
 
 if __name__ == '__main__':
-    LabelPose().run()
+    parser = argparse.ArgumentParser(description="LabelPose 모드 선택")
+    parser.add_argument(
+        '--mode', 
+        type=str, 
+        choices=['Human', 'Pod', 'Pallet'], 
+        # required=True, 
+        default="Pod",
+        help="실행할 모드를 선택합니다: Human, Pod, Pallet 중 하나"
+    )
+    args = parser.parse_args()
+
+    LabelPose(args.mode).run()
