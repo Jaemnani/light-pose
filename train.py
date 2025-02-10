@@ -27,16 +27,16 @@ if __name__ == '__main__':
         type=str, 
         choices=['Human', 'Pod', 'Pallet'], 
         # required=True, 
-        # default="Pod",
-        default="Pallet",
+        default="Pod",
+        # default="Pallet",
         help="실행할 모드를 선택합니다: Human, Pod, Pallet 중 하나"
     )
     args = parser.parse_args()
 
     LightPose(
         mode= args.mode,
-        train_image_path=r'./train_data/pallet/train',
-        validation_image_path=r'./train_data/pallet/validation',
+        train_image_path=r'./train_data/pod/train',
+        validation_image_path=r'./train_data/pod/validation',
         input_shape=(96, 96, 1),
         lr=0.001,
         decay=5e-4,
