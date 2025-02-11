@@ -33,10 +33,17 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
+    dataset_path = "preprocessed/"
+    dataset_path += args.mode.lower() +"/"
+    train_image_path = dataset_path + "train"
+    validation_image_path = dataset_path + "validation"
+
     LightPose(
         mode= args.mode,
-        train_image_path=r'./train_data/pod/train',
-        validation_image_path=r'./train_data/pod/validation',
+        # train_image_path=r'./train_data/pod/train',
+        # validation_image_path=r'./train_data/pod/validation',
+        train_image_path=train_image_path,
+        validation_image_path=validation_image_path,
         input_shape=(96, 96, 1),
         lr=0.001,
         decay=5e-4,

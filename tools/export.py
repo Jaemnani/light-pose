@@ -286,8 +286,8 @@ if __name__ == "__main__":
         '--model_path', 
         type=str, 
         # required=True, 
-        default="./checkpoint/pod_best_model_10000_iter_0.9878_val_PCK.h5",
-        # default="./checkpoint/pallet_best_model_12000_iter_0.7136_val_PCK.h5",
+        default="checkpoint/_bests/pod_best_model_10000_iter_0.9878_val_PCK.h5",
+        # default="checkpoint/_bests/pallet_best_model_12000_iter_0.7136_val_PCK.h5",
         help="Tensorflow로 생성된 모델 파일 경로를 입력하세요 (*.h5)"
     )
     args = parser.parse_args()
