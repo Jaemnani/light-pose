@@ -190,7 +190,7 @@ class LightPose:
             loss_sum += tf.reduce_mean(np.square(batch_y - y_pred))
         return loss_sum / tf.cast(len(generator_flow), dtype=tf.float32) 
 
-    def calculate_pck(self, dataset='validation', distance_threshold=0.1):  # PCK : percentage of correct keypoints, the metric of keypoints detection model
+    def calculate_pck(self, dataset='validation', distance_threshold=0.1, mode="Human"):  # PCK : percentage of correct keypoints, the metric of keypoints detection model
         assert dataset in ['train', 'validation']
         visible_keypoint_count = 0
         correct_keypoint_count = 0
@@ -205,6 +205,7 @@ class LightPose:
             y_pred = np.asarray(self.graph_forward(self.model, x)).reshape(self.output_shape).astype('float32')
             y_pred = self.post_process(y_pred)
             
+            # read ground truth file.
             with open(f'{path[:-4]}.txt', 'rt') as f:
                 lines = f.readlines()
             y_true = np.zeros(shape=(self.limb_size, 3), dtype=np.float32)
@@ -216,38 +217,104 @@ class LightPose:
                 y_true[i][1] = x_pos
                 y_true[i][2] = y_pos
 
-            if y_true[0][0] == 1.0 and y_true[1][0] == 1.0:
-                x_pos_head = y_true[0][1]
-                y_pos_head = y_true[0][2]
-                x_pos_neck = y_true[1][1]
-                y_pos_neck = y_true[1][2]
-                distance = np.sqrt(np.square(x_pos_head - x_pos_neck) + np.square(y_pos_head - y_pos_neck))
-                head_neck_distance_sum += distance
-                head_neck_distance_count += 1
+            if mode == "Human":
+                # if Head, Neck is Visible,
+                if y_true[0][0] == 1.0 and y_true[1][0] == 1.0:
+                    x_pos_head = y_true[0][1]
+                    y_pos_head = y_true[0][2]
+                    x_pos_neck = y_true[1][1]
+                    y_pos_neck = y_true[1][2]
+                    distance = np.sqrt(np.square(x_pos_head - x_pos_neck) + np.square(y_pos_head - y_pos_neck))
+                    head_neck_distance_sum += distance
+                    head_neck_distance_count += 1
 
-            for i in range(self.limb_size):
-                if y_true[i][0] == 1.0:
-                    visible_keypoint_count += 1
-                    if y_pred[i][0] > self.confidence_threshold:
-                        x_pos_true = y_true[i][1]
-                        y_pos_true = y_true[i][2]
-                        x_pos_pred = y_pred[i][1]
-                        y_pos_pred = y_pred[i][2]
-                        distance = np.sqrt(np.square(x_pos_true - x_pos_pred) + np.square(y_pos_true - y_pos_pred))
-                        if distance < distance_threshold:
-                            correct_keypoint_count += 1
-                else:
-                    invisible_keypoint_count += 1
 
-        head_neck_distance = head_neck_distance_sum / float(head_neck_distance_count)
+                for i in range(self.limb_size):
+                    if y_true[i][0] == 1.0:
+                        visible_keypoint_count += 1
+                        if y_pred[i][0] > self.confidence_threshold:
+                            x_pos_true = y_true[i][1]
+                            y_pos_true = y_true[i][2]
+                            x_pos_pred = y_pred[i][1]
+                            y_pos_pred = y_pred[i][2]
+                            distance = np.sqrt(np.square(x_pos_true - x_pos_pred) + np.square(y_pos_true - y_pos_pred))
+                            if distance < distance_threshold:
+                                correct_keypoint_count += 1
+                    else:
+                        invisible_keypoint_count += 1
+            # PCKb
+            else: # PCKb
+                diag = np.sqrt(2)
+                dists = np.linalg.norm( (y_pred - y_true)[:, 1:], axis=1)
+                for i in range(self.limb_size):
+                    if y_true[i][0] == 1.0:
+                        visible_keypoint_count+=1
+                        if y_pred[i][0] > self.confidence_threshold:
+                            dist = dists[i]
+                            if dist < distance_threshold:
+                                correct_keypoint_count+=1
+                    else:
+                        invisible_keypoint_count+=1
+                pass
         pck = correct_keypoint_count / float(visible_keypoint_count)
 
         print(f'visible_keypoint_count   : {visible_keypoint_count}')
         print(f'invisible_keypoint_count : {invisible_keypoint_count}')
         print(f'correct_keypoint_count   : {correct_keypoint_count}')
-        print(f'head neck distance : {head_neck_distance:.4f}')
+        if mode=="Human":
+            head_neck_distance = head_neck_distance_sum / float(head_neck_distance_count)
+            print(f'head neck distance : {head_neck_distance:.4f}')
         print(f'{dataset} data PCK@{int(distance_threshold * 100)} : {pck:.4f}')
         return pck
+    
+    def calculate_oks(self, dataset='validation', distance_threshold=0.001, mode="Human"):  # PCK : percentage of correct keypoints, the metric of keypoints detection model
+        assert dataset in ['train', 'validation']
+        # visible_keypoint_count = 0
+        # correct_keypoint_count = 0
+        # invisible_keypoint_count = 0
+        # head_neck_distance_count = 0
+        # head_neck_distance_sum = 0.0
+        average_oks = 0.
+        oks_count = 0.
+        image_paths = self.train_image_paths if dataset == 'train' else self.validation_image_paths
+        for image_path in tqdm(image_paths):
+            img, path = DataGenerator.load_img(image_path, self.input_shape[-1] == 3)
+            resized_img = DataGenerator.resize(img, (self.input_shape[1], self.input_shape[0]))
+            x = np.asarray(resized_img).reshape((1,) + self.input_shape).astype('float32') / 255.0
+            y_pred = np.asarray(self.graph_forward(self.model, x)).reshape(self.output_shape).astype('float32')
+            y_pred = self.post_process(y_pred)
+            
+            # read ground truth file.
+            with open(f'{path[:-4]}.txt', 'rt') as f:
+                lines = f.readlines()
+            y_true = np.zeros(shape=(self.limb_size, 3), dtype=np.float32)
+            for i, line in enumerate(lines):
+                if i == self.limb_size:
+                    break
+                confidence, x_pos, y_pos = list(map(float, line.split()))
+                y_true[i][0] = confidence
+                y_true[i][1] = x_pos
+                y_true[i][2] = y_pos
+
+            gt_visibility = y_true[:, 0]
+
+            area = img.shape[0] * img.shape[1]
+
+            diff = (y_pred - y_true)[:, 1:]
+            diff2 = np.sum(diff **2, axis=1)
+
+            # sigma = np.array(0.25)
+            sigma = np.array(distance_threshold)
+            denom = 2 * (area * (sigma ** 2)) + 1e-7
+
+            oks_per_keypoint = np.exp(-diff2 / denom)
+
+            valid = gt_visibility > 0
+
+            average_oks = ((average_oks * oks_count) + np.sum(oks_per_keypoint[valid])) / (oks_count + np.sum(valid))
+            oks_count += np.sum(valid)
+
+        return average_oks
 
     def compute_gradient_1d(self, model, optimizer, loss_function, x, y_true, limb_size):
         with tf.GradientTape() as tape:
@@ -357,13 +424,28 @@ class LightPose:
             warm_up_end = iteration_count >= int(self.iterations * self.warm_up)
             if warm_up_end and iteration_count % self.checkpoint_interval == 0:
                 print()
-                val_pck = self.calculate_pck(dataset='validation')
-                if val_pck > max_val_pck:
-                    max_val_pck = val_pck
-                    self.model.save(f'checkpoint/best_model_{iteration_count}_iter_{val_pck:.4f}_val_PCK.h5', include_optimizer=False)
-                    print('best val PCK model saved')
+                valid_func="PCKb"
+                if valid_func == "PCKh":
+                    val_pck = self.calculate_pck(dataset='validation')
+                elif valid_func == "PCKb": 
+                    val_pck = self.calculate_pck(dataset='validation', distance_threshold=0.01, mode=self.mode)
                 else:
-                    self.model.save(f'checkpoint/model_{iteration_count}_iter_{val_pck:.4f}_val_PCK.h5', include_optimizer=False)
+                    val_oks = self.calculate_oks()
+
+                if "PCK" in valid_func:
+                    if val_pck > max_val_pck:
+                        max_val_pck = val_pck
+                        self.model.save(f'checkpoint/best_model_{iteration_count}_iter_{val_pck:.4f}_val_PCK.h5', include_optimizer=False)
+                        print('best val PCK model saved')
+                    else:
+                        self.model.save(f'checkpoint/model_{iteration_count}_iter_{val_pck:.4f}_val_PCK.h5', include_optimizer=False)
+                else:
+                    if val_oks > max_val_pck:
+                        max_val_pck = val_oks
+                        self.model.save(f'checkpoint/best_model_{iteration_count}_iter_{val_oks:.4f}_val_OKS.h5', include_optimizer=False)
+                        print('best val OKS model saved')
+                    else:
+                        self.model.save(f'checkpoint/model_{iteration_count}_iter_{val_oks:.4f}_val_OKS.h5', include_optimizer=False)
                 print()
 
             if iteration_count == self.iterations:
