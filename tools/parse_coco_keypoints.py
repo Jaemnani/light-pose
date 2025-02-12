@@ -91,14 +91,9 @@ if __name__ == "__main__":
 
         dst_path = "preprocessed/"+obj_name+"/"
         dbg_path = dst_path + "cocokpts_label_dbg/"
-        inzapp_path = dst_path + "inzapp/"
+        inzapp_path = dst_path + "merge/"
         os.makedirs(dbg_path, exist_ok=True)
         os.makedirs(inzapp_path, exist_ok=True)
-        
-        # img_save_path = dst_path + "images/"
-        # kpt_save_path = dst_path + "keypoints/"
-        # os.makedirs(img_save_path, exist_ok=True)
-        # os.makedirs(kpt_save_path, exist_ok=True)
 
         for dir_idx, dir_name in enumerate(tqdm(target_dirs)):
             # anno_dir = dir_name + "/annotations"
@@ -170,29 +165,18 @@ if __name__ == "__main__":
                     for kp_idx, kp in enumerate(kpts):
                         if kp[0] < 0 or kp[1] < 0 or kp[0] > img_size[0] or kp[1] > img_size[1]:
                             continue
-                        # kp = np.round(kp).astype(int)
                         crop_img = cv2.circle(crop_img, kp, radius=3, color=color_map[kp_idx], thickness=-1)
 
-                    INZAPP=True
+
                     save_base_path = os.path.basename(dir_name) +"_"+ obj_name +f"_{kpts_idx:02d}_"
-                    if INZAPP:
-                        save_file_name = save_base_path + os.path.basename(img_path).replace(".jpg", "_DBG.jpg").replace(".png", "_DBG.jpg").replace(".jpeg", "_DBG.jpg")
-                        save_img_name = save_base_path + os.path.basename(img_path).replace(".png", ".jpg").replace(".jpeg", ".jpg")
-                        save_label_name = save_base_path + os.path.basename(img_path).replace(".jpg", ".txt").replace(".png", ".txt").replace(".jpeg", ".txt")
-                        cv2.imwrite(dbg_path + save_file_name, crop_img)
-                        cv2.imwrite(inzapp_path + save_img_name, crop_ori_img)
-                        with open(inzapp_path + save_label_name, 'w') as f:
-                            for i in inzapp_label:
-                                line = "%.1f %.6f %.6f\n"%(i[0], i[1], i[2])
-                                f.write(line)
 
-                    # else:
-                    #     save_file_name = save_base_path + os.path.basename(img_path).replace(".jpg", "_DBG.jpg").replace(".png", "_DBG.png")
-                    #     save_label_name = save_base_path + os.path.basename(img_path).replace(".jpg", ".txt").replace(".png", ".txt")
-                    #     cv2.imwrite(dbg_path + save_file_name, crop_img)
-                    #     cv2.imwrite(img_save_path + os.path.basename(img_path).replace(".png", ".jpg"), crop_ori_img)
-                    #     with open(kpt_save_path + save_label_name, 'w') as f:
-                    #         line = ','.join(str(x) for x in kpts.flatten())
-                    #         f.write(line)
+                    save_file_name = save_base_path + os.path.basename(img_path).replace(".jpg", "_DBG.jpg").replace(".png", "_DBG.jpg").replace(".jpeg", "_DBG.jpg")
+                    save_img_name = save_base_path + os.path.basename(img_path).replace(".png", ".jpg").replace(".jpeg", ".jpg")
+                    save_label_name = save_base_path + os.path.basename(img_path).replace(".jpg", ".txt").replace(".png", ".txt").replace(".jpeg", ".txt")
+                    cv2.imwrite(dbg_path + save_file_name, crop_img)
+                    cv2.imwrite(inzapp_path + save_img_name, crop_ori_img)
+                    with open(inzapp_path + save_label_name, 'w') as f:
+                        for i in inzapp_label:
+                            line = "%.1f %.6f %.6f\n"%(i[0], i[1], i[2])
+                            f.write(line)
 
-    # exit()

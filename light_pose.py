@@ -95,11 +95,11 @@ class LightPose:
                  mode,
                  train_image_path,
                  input_shape,
-                 lr,
-                 warm_up,
-                 momentum,
-                 batch_size,
-                 iterations,
+                 lr=1e-4,
+                 warm_up=0.1,
+                 momentum=0.9,
+                 batch_size=32,
+                 iterations=20000,
                  decay=5e-4,
                  training_view=False,
                  checkpoint_interval=2000,
@@ -428,7 +428,7 @@ class LightPose:
                 if valid_func == "PCKh":
                     val_pck = self.calculate_pck(dataset='validation')
                 elif valid_func == "PCKb": 
-                    val_pck = self.calculate_pck(dataset='validation', distance_threshold=0.01, mode=self.mode)
+                    val_pck = self.calculate_pck(dataset='validation', distance_threshold=0.1, mode=self.mode)
                 else:
                     val_oks = self.calculate_oks()
 

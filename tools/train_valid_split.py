@@ -3,12 +3,11 @@ import shutil as sh
 from glob import glob
 from tqdm import tqdm
 
-# datas_path = "/Users/jaemoonye/tmp/light-pose/train_data/pose/"
 target_path = "preprocessed/"
 objs_path = list(filter(os.path.isdir, glob(target_path+"*")))
 for obj_idx, obj_path in enumerate(tqdm(objs_path)):
     obj_path += "/"
-    file_list = glob(obj_path + "inzapp/*.jpg")
+    file_list = glob(obj_path + "merge/*.jpg")
 
     if len(file_list) > 0:
         os.makedirs(obj_path+"train/", exist_ok=True)
@@ -21,12 +20,10 @@ for obj_idx, obj_path in enumerate(tqdm(objs_path)):
             continue
 
         if i % 10:
-            sh.move(img_name, obj_path + "train/")
-            sh.move(lbl_name, obj_path + "train/")
-            # print("move to Train")
+            sh.copy(img_name, obj_path + "train/")
+            sh.copy(lbl_name, obj_path + "train/")
         else:
-            sh.move(img_name, obj_path + "validation/")
-            sh.move(lbl_name, obj_path + "validation/")
-            # print("move to Valid")
+            sh.copy(img_name, obj_path + "validation/")
+            sh.copy(lbl_name, obj_path + "validation/")
 
 print("done.")

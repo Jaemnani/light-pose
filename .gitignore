@@ -5,3 +5,7 @@
 .idea/
 __pycache__/
 checkpoints/
+*.png
+*.jpg
+*.zip
+.DS_Store
