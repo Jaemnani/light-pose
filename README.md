@@ -1,5 +1,93 @@
 # LightPose
 
+#### Thanks to inzapp.
+
+## My Updates
+
+Through this major update, we have established a pipeline ranging from **Multi-mode support** to **Data Preprocessing and Deployment (Export)**.
+
+1.  **Multi-Mode Support**: The architecture has been refactored to support various objects such as **Human, Pod, and Pallet**, moving away from a single-model structure.
+2.  **Automated Pipeline**:
+    * `tools/parse_coco_keypoints.py`: Automatically converts COCO format data for model training (Auto-Crop & Normalize).
+    * `tools/train_valid_split.py`: Automatically splits Train/Validation datasets.
+3.  **Deployment Ready**: Added `tools/export.py` to convert trained models into **ONNX** and **OpenVINO IR** formats.
+4.  **Smart Inference**: Automatically detects the mode by analyzing the model's output shape when running `test.py`.
+
+---
+
+## 🛠 Requirements
+
+* python 3.8+
+```bash
+pip install -r requirements.txt
+```
+
+## 📂 Dataset Preparation
+
+### 1. Place Dataset
+Place the compressed file of COCO Keypoint format (including images) downloaded from CVAT or other sources into the `datasets/` folder.
+
+```text
+datasets/
+├── keypoints_dataset_no119.zip
+└── keypoints_dataset_no120.zip
+```
+
+### 2. Unzip
+Unzip the files to match the folder structure.
+
+```text
+datasets/
+├── no119
+│   ├── annotations
+│   └── images
+│       └── default
+└── no120
+    ├── annotations
+    └── images
+        └── default
+```
+
+### 3. COCO Parsing (Preprocessing)
+Parses the JSON in COCO format to crop objects and generate normalized labels (.txt).
+```Bash
+python tools/parse_coco_keypoints.py
+```
+
+### 4. Train / Validation Split
+Splits the preprocessed data into training and validation sets.
+```Bash
+python tools/train_valid_split.py
+```
+
+### 🚀 Training
+Start training by specifying the desired mode (`--mode`).
+```Bash
+# Train Pod
+python train.py --mode Pod 
+
+# Train Pallet
+python train.py --mode Pallet
+```
+
+### 🧪 Testing
+Specify the model file and the test image folder. (The system automatically distinguishes Pod/Pallet/Human modes via the model's Output Size.)
+```Bash
+# Basic Usage
+python test.py --model_path {model_name}.h5 --test_path {test_img_dir}
+
+# Example
+python test.py --model_path model.h5 --test_path preprocessed/pod/test/
+```
+
+### 📦 Export (ONNX, OpenVINO)
+Convert the trained model into a deployment format. The results are saved in the `result/export/` path.
+```Bash
+python tools/export.py --model_path {model_name}.h5
+```
+
+--- 
+
 LightPose is a top-down key point detection model that inspired by the yolo object detection model
 
 This is a one-stage model in which both feature extraction and key point detection are performed through a simple convolution network
@@ -17,6 +105,9 @@ The model predicts only key points for the upper body and not unnecessary key po
 The more diverse the training data, the more robust the model is
 
 <img src="/md/sample.jpg" width="500"><br>
+
+
+
 
 ## Augmentation
 
